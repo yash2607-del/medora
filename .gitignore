@@ -1,0 +1,117 @@
+# ==============================================================================
+# Healthcare & Diagnostic Data (Prevent Data Leakage)
+# ==============================================================================
+# Ignore all data directories across root and subpackages
+data/
+**/data/
+Server/data/
+Server/data/**
+
+# Raw dataset files (Excel, PDF, CSV, TSV, Word)
+*.xlsx
+*.xls
+*.csv
+*.tsv
+*.pdf
+*.doc
+*.docx
+
+# Vector Database & Embeddings Storage (ChromaDB / SQLite / Indexes)
+chroma/
+**/chroma/
+*.sqlite
+*.sqlite3
+*.db
+*.bin
+*.pickle
+*.pkl
+
+# Conversation history, test sessions, and chat logs
+history/
+**/history/
+*.session.json
+
+# ==============================================================================
+# Environment & Sensitive Credentials (Prevent Credential Leakage)
+# ==============================================================================
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+credentials.json
+client_secret*.json
+
+# ==============================================================================
+# Python & Cache Files
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==============================================================================
+# Node & Frontend Build (Client)
+# ==============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+client/dist/
+dist/
+dist-ssr/
+*.local
+
+# ==============================================================================
+# Logs & Temporary Files
+# ==============================================================================
+*.log
+logs/
+*.tmp
+*.temp
+.cache/
+
+# ==============================================================================
+# IDE & Operating System Files
+# ==============================================================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

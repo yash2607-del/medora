@@ -1,0 +1,49 @@
+# ==============================================================================
+# Healthcare & Diagnostic Data (Prevent Data Leakage)
+# ==============================================================================
+data/
+data/**
+*.xlsx
+*.xls
+*.csv
+*.tsv
+*.pdf
+*.doc
+*.docx
+
+# Vector Database & Embeddings Storage
+chroma/
+**/chroma/
+*.sqlite
+*.sqlite3
+*.db
+*.bin
+*.pickle
+*.pkl
+
+# Conversation history & test sessions
+history/
+**/history/
+*.session.json
+
+# Environment & Credentials
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+credentials.json
+
+# Python cache & virtualenv
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Logs
+*.log
+logs/
