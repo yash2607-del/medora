@@ -1,3 +1,4 @@
+import os
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -29,13 +30,14 @@ COOKIE_MAX_AGE = 24 * 60 * 60
 
 
 def set_session_cookie(response: Response, token: str):
+    is_prod = os.getenv("RENDER", False) or os.getenv("ENVIRONMENT") == "production"
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         max_age=COOKIE_MAX_AGE,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=True if is_prod else False,
+        samesite="none" if is_prod else "lax",
         path="/",
     )
 
