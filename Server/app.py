@@ -32,12 +32,19 @@ def startup_event():
 # CORS
 # =========================================================
 
+cors_env = os.getenv("ALLOWED_ORIGINS", "")
+custom_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+
+default_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+allowed_origins = list(set(default_origins + custom_origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=allowed_origins if allowed_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
