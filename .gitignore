@@ -27,8 +27,7 @@ chroma/
 *.pkl
 
 # Conversation history, test sessions, and chat logs
-history/
-**/history/
+Server/data/history/
 *.session.json
 
 # ==============================================================================

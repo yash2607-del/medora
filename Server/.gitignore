@@ -22,8 +22,7 @@ chroma/
 *.pkl
 
 # Conversation history & test sessions
-history/
-**/history/
+data/history/
 *.session.json
 
 # Environment & Credentials
