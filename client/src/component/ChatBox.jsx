@@ -47,7 +47,7 @@ export default function ChatBox({ initialQuery, setInitialQuery }) {
     setIsLoading(true);
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || 'https://healthcare-rag-assistant-1.onrender.com';
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const response = await axios.post(`${apiBase}/api/chat`, {
         query: text.trim(),
         session_id: sessionId
