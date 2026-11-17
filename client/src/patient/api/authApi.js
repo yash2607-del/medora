@@ -10,9 +10,20 @@ const authClient = axios.create({
   withCredentials: true,
 });
 
+authClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('medora_auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const authApi = {
   signup: async (data) => {
     const response = await authClient.post('/signup', data);
+    if (response?.data?.token) {
+      localStorage.setItem('medora_auth_token', response.data.token);
+    }
     return response.data;
   },
 
@@ -21,6 +32,9 @@ export const authApi = {
       username,
       password,
     });
+    if (response?.data?.token) {
+      localStorage.setItem('medora_auth_token', response.data.token);
+    }
     return response.data;
   },
 
@@ -30,8 +44,12 @@ export const authApi = {
   },
 
   logout: async () => {
-    const response = await authClient.post('/logout');
-    return response.data;
+    try {
+      const response = await authClient.post('/logout');
+      return response.data;
+    } finally {
+      localStorage.removeItem('medora_auth_token');
+    }
   },
 };
 

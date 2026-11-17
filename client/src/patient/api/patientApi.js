@@ -12,6 +12,14 @@ const patientClient = axios.create({
   withCredentials: true,
 });
 
+patientClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('medora_auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const patientApi = {
    getPatients: async () => {
     const response = await patientClient.get(

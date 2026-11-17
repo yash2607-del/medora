@@ -144,6 +144,7 @@ def signup(
         authenticated=True,
         username=account.username,
         patient_id=account.patient_id,
+        token=raw_token,
     )
 
 
@@ -196,6 +197,7 @@ def login(
         authenticated=True,
         username=account.username,
         patient_id=account.patient_id,
+        token=raw_token,
     )
 
 
@@ -208,6 +210,10 @@ def me(
     db: Session = Depends(get_db),
 ):
     raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            raw_token = auth_header.split(" ", 1)[1].strip()
 
     account = get_authenticated_account(
         db,

@@ -23,6 +23,7 @@ class LoginResponse(BaseModel):
     authenticated: bool
     username: str
     patient_id: str
+    token: Optional[str] = None
 
 
 class AuthMeResponse(BaseModel):
