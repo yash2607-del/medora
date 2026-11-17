@@ -236,6 +236,25 @@ export default function LoginPage({ onLogin, onSignup }) {
 
             </div>
 
+            {/* Quick Demo Credentials Helper */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-left text-xs text-slate-600">
+              <p className="font-semibold text-blue-900 mb-1">Demo Credentials:</p>
+              <div className="flex justify-between items-center">
+                <span>Username: <strong className="text-slate-800 font-mono">demo</strong></span>
+                <span>Password: <strong className="text-slate-800 font-mono">demo1234</strong></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsername('demo');
+                    setPassword('demo1234');
+                  }}
+                  className="ml-2 px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-medium"
+                >
+                  Fill
+                </button>
+              </div>
+            </div>
+
 
             {/* Security Message */}
             <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">

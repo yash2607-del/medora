@@ -30,7 +30,8 @@ COOKIE_MAX_AGE = 24 * 60 * 60
 
 
 def set_session_cookie(response: Response, token: str):
-    is_prod = os.getenv("RENDER", False) or os.getenv("ENVIRONMENT") == "production"
+    # Render sets RENDER=true or RENDER_SERVICE_ID in environment
+    is_prod = bool(os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID") or os.getenv("ENVIRONMENT") == "production")
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
