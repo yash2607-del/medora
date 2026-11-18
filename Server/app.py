@@ -15,7 +15,6 @@ from auth import models as auth_models  # noqa: F401
 from patient.models import patient_models  # noqa: F401
 
 from patient.models.database import init_db
-from patient.seed_data import seed_demo_data
 
 
 app = FastAPI(
@@ -27,7 +26,6 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     init_db()
-    seed_demo_data()
 
 
 # =========================================================

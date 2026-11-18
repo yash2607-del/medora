@@ -73,11 +73,6 @@ def get_current_account(
     )
 
     if not account:
-        # Fallback to demo account in development/sandbox if available
-        demo_acc = db.query(PatientAccount).filter(PatientAccount.username == "demo").first()
-        if demo_acc and demo_acc.is_active:
-            return demo_acc
-
         raise HTTPException(
             status_code=401,
             detail="Authentication required.",
