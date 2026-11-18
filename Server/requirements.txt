@@ -21,3 +21,4 @@ huggingface-hub
 fastembed
 passlib[bcrypt]
 bcrypt
+psycopg2-binary
