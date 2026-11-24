@@ -286,6 +286,39 @@ def get_report_status(
     return status
 
 
+@router.get("/reports/{report_id}/file")
+def get_report_file(
+    report_id: str,
+    db: Session = Depends(get_db),
+    current_patient_id: str = Depends(get_current_patient_id),
+):
+    """
+    Retrieve or stream the original report file.
+    Redirects to Supabase Cloud Storage if hosted in cloud, or streams local file.
+    """
+    service = PatientService(db)
+    info = service.get_report_file_info(current_patient_id, report_id)
+
+    if not info:
+        raise HTTPException(
+            status_code=404,
+            detail="Report file not found.",
+        )
+
+    if info["source"] == "cloud" and info["url"]:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=info["url"])
+
+    if info["source"] == "local" and info.get("path") and os.path.isfile(info["path"]):
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            info["path"],
+            filename=info.get("filename") or "report.pdf",
+        )
+
+    return info
+
+
 # ── Report Upload ─────────────────────────────────────────────────────────────
 
 

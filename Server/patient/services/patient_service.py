@@ -30,6 +30,7 @@ from ..extraction.test_extractor import TestExtractor
 from ..correlation.longitudinal_analyzer import LongitudinalAnalyzer
 from ..generation.patient_report_generator import PatientReportGenerator
 from ..generation.patient_chat_service import PatientChatService
+from ..storage.supabase_storage import SupabaseStorage
 
 
 # ── Upload directory ──────────────────────────────────────────────────────────
@@ -124,6 +125,7 @@ class PatientService:
 
         self.report_gen = PatientReportGenerator()
         self.chat_svc = PatientChatService()
+        self.storage = SupabaseStorage()
 
     # ── Patient Profiles ──────────────────────────────────────────────────────
 
@@ -409,6 +411,23 @@ class PatientService:
                 f"Uploaded file exceeds the {mb} MB limit after writing."
             )
 
+        # ── 3.5. Upload to Cloud Storage (Supabase) if configured ──────────
+        storage_file_ref = safe_orig
+        cloud_storage_url = None
+        if self.storage.is_configured:
+            try:
+                dest_path = f"{patient_id}/{unique_file_name}"
+                cloud_storage_url = self.storage.upload_file(
+                    local_path=saved_path,
+                    destination_path=dest_path,
+                    content_type=content_type,
+                )
+                if cloud_storage_url:
+                    storage_file_ref = cloud_storage_url
+                    print(f"[Supabase Storage] Report uploaded successfully: {cloud_storage_url}")
+            except Exception as upload_err:
+                print(f"[Supabase Storage Warning] Fallback to local storage: {upload_err}")
+
         # ── 4. Create report record ───────────────────────────────────────────
 
         report_id = (
@@ -466,7 +485,7 @@ class PatientService:
             "collection_date": resolved_date,
             "report_date": resolved_date,
             "source_type": source_type,
-            "original_file": safe_orig,
+            "original_file": storage_file_ref,
             "processing_status": "UPLOADED",
             "ocr_quality_score": 1.0,
         })
@@ -610,6 +629,8 @@ class PatientService:
                 ),
             },
             "file_hash": file_hash,
+            "original_file": storage_file_ref,
+            "storage_url": cloud_storage_url,
             "total_extracted_tests": len(
                 saved_results
             ),
@@ -716,6 +737,8 @@ class PatientService:
             "collection_date": report.collection_date,
             "laboratory": report.laboratory,
             "report_category": report.report_category,
+            "source_type": report.source_type,
+            "original_file": report.original_file,
             "processing_status": report.processing_status,
             "ocr_quality_score": report.ocr_quality_score,
             "created_at": report.created_at,
@@ -740,6 +763,57 @@ class PatientService:
                 }
                 for r in results
             ],
+        }
+
+    def get_report_file_info(
+        self,
+        patient_id: str,
+        report_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Resolves original file download / access information.
+        Works across both Supabase Cloud Storage and local storage.
+        """
+        report = self.repo.get_report(patient_id, report_id)
+        if not report or not report.original_file:
+            return None
+
+        file_ref = report.original_file
+
+        # Cloud storage URL
+        if file_ref.startswith("http://") or file_ref.startswith("https://"):
+            return {
+                "source": "cloud",
+                "url": file_ref,
+                "filename": os.path.basename(file_ref.split("?")[0]),
+            }
+
+        # Local storage fallback
+        patient_dir = _patient_upload_dir(patient_id)
+        local_path = os.path.join(patient_dir, file_ref)
+        if os.path.isfile(local_path):
+            return {
+                "source": "local",
+                "path": local_path,
+                "url": None,
+                "filename": file_ref,
+            }
+
+        # Check if stored by safe name without UUID prefix
+        for fname in os.listdir(patient_dir) if os.path.isdir(patient_dir) else []:
+            candidate = os.path.join(patient_dir, fname)
+            if os.path.isfile(candidate) and (fname == file_ref or file_ref in fname):
+                return {
+                    "source": "local",
+                    "path": candidate,
+                    "url": None,
+                    "filename": fname,
+                }
+
+        return {
+            "source": "unknown",
+            "url": None,
+            "filename": file_ref,
         }
 
     # ── Trend Engine ───────────────────────────────────────────────────────────
