@@ -172,11 +172,14 @@ function App() {
             <SignupPage
               onSignup={handleSignup}
               onLogin={() => setAuthView('login')}
+              onBackToLogin={() => setAuthView('login')}
+              onBackToHome={openHealthcareAssistant}
             />
           ) : (
             <LoginPage
               onLogin={handleLogin}
               onSignup={() => setAuthView('signup')}
+              onBackToHome={openHealthcareAssistant}
             />
           )}
 

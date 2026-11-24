@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/authApi';
 
-export default function SignupPage({ onSignup, onBackToLogin }) {
+export default function SignupPage({ onSignup, onLogin, onBackToLogin, onBackToHome }) {
   const [form, setForm] = useState({
     name: '',
     age: '',
@@ -97,8 +98,26 @@ export default function SignupPage({ onSignup, onBackToLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg border border-slate-200 p-7">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 py-8">
+      <div className="w-full max-w-xl">
+
+        {(onBackToLogin || onLogin || onBackToHome) && (
+          <button
+            type="button"
+            onClick={onBackToLogin || onLogin || onBackToHome}
+            className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-all duration-200 group cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm group-hover:border-blue-300 group-hover:bg-blue-50/50 group-hover:shadow transition-all">
+              <ArrowLeft
+                size={16}
+                className="text-slate-500 group-hover:text-blue-600 group-hover:-translate-x-0.5 transition-all duration-200"
+              />
+            </div>
+            <span>{onBackToLogin || onLogin ? 'Back to Sign In' : 'Back to Home'}</span>
+          </button>
+        )}
+
+        <div className="w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-7">
 
         <div className="text-center mb-7">
           <h1 className="text-2xl font-bold text-slate-900">
@@ -310,6 +329,7 @@ export default function SignupPage({ onSignup, onBackToLogin }) {
           </button>
         </p>
 
+        </div>
       </div>
     </div>
   );

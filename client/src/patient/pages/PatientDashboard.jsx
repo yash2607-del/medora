@@ -10,6 +10,7 @@ import {
   RefreshCw,
   AlertTriangle,
   ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 
 import { patientApi } from '../api/patientApi';
@@ -563,9 +564,13 @@ export default function PatientDashboard({
               <button
                 onClick={onLogout}
                 title="Logout"
-                className="px-4 py-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors shrink-0"
+                className="px-4 py-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-red-50 hover:border-red-300 hover:text-red-600 text-slate-700 text-xs font-bold transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-red-500/10 active:scale-95 flex items-center gap-2 cursor-pointer shrink-0 group"
               >
-                Logout
+                <LogOut
+                  size={14}
+                  className="text-slate-400 group-hover:text-red-600 group-hover:-translate-x-0.5 transition-all duration-200"
+                />
+                <span>Logout</span>
               </button>
             )}
           </div>

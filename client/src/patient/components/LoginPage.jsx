@@ -8,11 +8,12 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
+  ArrowLeft,
 } from 'lucide-react';
 
 import authApi from '../api/authApi';
 
-export default function LoginPage({ onLogin, onSignup }) {
+export default function LoginPage({ onLogin, onSignup, onBackToHome }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -65,9 +66,25 @@ export default function LoginPage({ onLogin, onSignup }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
 
       <div className="w-full max-w-md">
+
+        {onBackToHome && (
+          <button
+            type="button"
+            onClick={onBackToHome}
+            className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-all duration-200 group cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm group-hover:border-blue-300 group-hover:bg-blue-50/50 group-hover:shadow transition-all">
+              <ArrowLeft
+                size={16}
+                className="text-slate-500 group-hover:text-blue-600 group-hover:-translate-x-0.5 transition-all duration-200"
+              />
+            </div>
+            <span>Back to Home</span>
+          </button>
+        )}
 
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
 
