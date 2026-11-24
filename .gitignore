@@ -1,18 +1,23 @@
 # ==============================================================================
 # Healthcare & Diagnostic Data (Prevent Data Leakage)
 # ==============================================================================
-# Ignore all data directories across root and subpackages
-data/
-**/data/
-Server/data/
-Server/data/**
+# Ignore runtime and patient data directories
+data/patient/
+**/data/patient/
+Server/data/patient/
+Server/data/history/
+Server/data/csv/
 
-# Raw dataset files (Excel, PDF, CSV, TSV, Word)
-*.xlsx
+# Allow reference catalog files needed for RAG
+!Server/data/excel/
+!Server/data/excel/*.xlsx
+!Server/data/pdf/
+!Server/data/pdf/*.pdf
+
+# Raw dataset files
 *.xls
 *.csv
 *.tsv
-*.pdf
 *.doc
 *.docx
 

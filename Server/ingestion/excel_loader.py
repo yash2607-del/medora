@@ -45,6 +45,20 @@ class ExcelLoader:
         human-readable text block, and wraps it in a LangChain Document.
         """
         if not os.path.exists(self.excel_path):
+            print(f"Excel file not found locally at {self.excel_path}. Attempting download from Supabase Storage...")
+            os.makedirs(os.path.dirname(self.excel_path), exist_ok=True)
+            try:
+                from patient.storage.supabase_storage import SupabaseStorage
+                storage = SupabaseStorage()
+                content = storage.download_file("rag/Lord_Test_MRP_and_DOS.xlsx")
+                if content:
+                    with open(self.excel_path, "wb") as f:
+                        f.write(content)
+                    print(f"Successfully downloaded Excel file from Supabase Storage to {self.excel_path}")
+            except Exception as e:
+                print(f"Could not download Excel from Supabase Storage: {e}")
+
+        if not os.path.exists(self.excel_path):
             raise FileNotFoundError(
                 f"Excel file not found at: {self.excel_path}"
             )

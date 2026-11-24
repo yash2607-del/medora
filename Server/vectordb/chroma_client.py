@@ -1,5 +1,6 @@
 import os
 import sys
+import hashlib
 # Add the Server directory to the path so it can find embeddings package when run directly
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -29,16 +30,43 @@ class ChromaClient:
             persist_directory=self.persist_directory
         )
 
+        # Auto-ingest if collection is empty (e.g. fresh cloud deployment)
+        try:
+            doc_count = self.vector_store._collection.count()
+            if doc_count == 0:
+                print("ChromaDB collection is empty. Performing automatic cloud deployment ingestion...")
+                self._auto_ingest()
+        except Exception as e:
+            print(f"ChromaDB initial check notice: {e}")
+
+    def _auto_ingest(self):
+        try:
+            from ingestion.excel_loader import ExcelLoader
+            from ingestion.pdf_loader import load_pdf_documents
+            excel_docs = ExcelLoader().load_documents()
+            pdf_docs = load_pdf_documents()
+            all_docs = excel_docs + pdf_docs
+            if all_docs:
+                self.ingest_documents(all_docs)
+                print(f"Auto-ingested {len(all_docs)} reference documents into ChromaDB.")
+        except Exception as e:
+            print(f"ChromaDB auto-ingestion warning: {e}")
+
     def ingest_documents(self, documents: List[Document], batch_size: int = 500):
         """
         Ingests a list of LangChain documents into the Chroma vector store in batches.
+        Uses deterministic chunk IDs to prevent duplicate embeddings on repeated runs.
         """
         print(f"Starting ingestion of {len(documents)} documents into ChromaDB...")
         
         # Process in batches to avoid overwhelming memory/Chroma
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
-            self.vector_store.add_documents(batch)
+            ids = [
+                f"{doc.metadata.get('source', 'doc')}_{hashlib.md5(doc.page_content.encode('utf-8')).hexdigest()}"
+                for doc in batch
+            ]
+            self.vector_store.add_documents(batch, ids=ids)
             print(f"Ingested batch {i // batch_size + 1} ({len(batch)} documents).")
             
         print(f"Successfully finished ingestion. Data is persisted to {self.persist_directory}")

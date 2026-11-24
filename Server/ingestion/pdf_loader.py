@@ -23,6 +23,20 @@ def load_pdf_documents(pdf_path: str = None) -> List[Document]:
             pdf_path = files[0] if files else default_file
 
     if not os.path.exists(pdf_path):
+        print(f"PDF file not found locally at {pdf_path}. Attempting download from Supabase Storage...")
+        os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+        try:
+            from patient.storage.supabase_storage import SupabaseStorage
+            storage = SupabaseStorage()
+            content = storage.download_file("rag/Lords_Pathology_Centre_Information.pdf")
+            if content:
+                with open(pdf_path, "wb") as f:
+                    f.write(content)
+                print(f"Successfully downloaded PDF file from Supabase Storage to {pdf_path}")
+        except Exception as e:
+            print(f"Could not download PDF from Supabase Storage: {e}")
+
+    if not os.path.exists(pdf_path):
         print(f"Warning: PDF file not found at: {pdf_path}")
         return []
 
