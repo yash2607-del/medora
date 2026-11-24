@@ -30,28 +30,6 @@ class ChromaClient:
             persist_directory=self.persist_directory
         )
 
-        # Auto-ingest if collection is empty (e.g. fresh cloud deployment)
-        try:
-            doc_count = self.vector_store._collection.count()
-            if doc_count == 0:
-                print("ChromaDB collection is empty. Performing automatic cloud deployment ingestion...")
-                self._auto_ingest()
-        except Exception as e:
-            print(f"ChromaDB initial check notice: {e}")
-
-    def _auto_ingest(self):
-        try:
-            from ingestion.excel_loader import ExcelLoader
-            from ingestion.pdf_loader import load_pdf_documents
-            excel_docs = ExcelLoader().load_documents()
-            pdf_docs = load_pdf_documents()
-            all_docs = excel_docs + pdf_docs
-            if all_docs:
-                self.ingest_documents(all_docs)
-                print(f"Auto-ingested {len(all_docs)} reference documents into ChromaDB.")
-        except Exception as e:
-            print(f"ChromaDB auto-ingestion warning: {e}")
-
     def ingest_documents(self, documents: List[Document], batch_size: int = 500):
         """
         Ingests a list of LangChain documents into the Chroma vector store in batches.

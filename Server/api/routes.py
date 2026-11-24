@@ -13,14 +13,20 @@ from groq import (
 
 router = APIRouter()
 
-# Initialize our AI components once when the server starts
-print("Loading AI Components for API...")
-try:
-    rag_chain = RAGChain()
-    print("AI Components Loaded!")
-except Exception as e:
-    print(f"CRITICAL: Failed to initialize AI components: {e}")
-    rag_chain = None
+# Lazy-loaded AI components to ensure fast boot, instant port binding, and <512MB RAM usage
+rag_chain = None
+
+def get_rag_chain():
+    global rag_chain
+    if rag_chain is None:
+        print("Loading AI Components for API...")
+        try:
+            rag_chain = RAGChain()
+            print("AI Components Loaded!")
+        except Exception as e:
+            print(f"CRITICAL: Failed to initialize AI components: {e}")
+            rag_chain = None
+    return rag_chain
 
 # Request/Response Models
 class ChatRequest(BaseModel):
@@ -33,7 +39,8 @@ class ChatResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
-    if rag_chain is None:
+    chain = get_rag_chain()
+    if chain is None:
         raise HTTPException(
             status_code=503,
             detail="AI Assistant is not properly initialized. Please verify backend GROQ_API_KEY configuration."
@@ -57,7 +64,7 @@ async def chat_endpoint(request: ChatRequest):
         
         if route == "diagnostics":
             # 2. Use full RAG pipeline (Retrieval + Generation + History)
-            response = rag_chain.invoke(request.query, session_id=request.session_id)
+            response = chain.invoke(request.query, session_id=request.session_id)
             answer = response["answer"]
         elif route == "centre_prompt":
             answer = "Please mention your state (Andhra Pradesh, Goa, Gujarat, Karnataka, or Maharashtra) or city to view nearby Lord Diagnostics centres."

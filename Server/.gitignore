@@ -1,12 +1,15 @@
 # Vector Database & Embeddings Storage
-chroma/
-**/chroma/
+*.db
 *.sqlite
 *.sqlite3
-*.db
 *.bin
 *.pickle
 *.pkl
+
+# Allow pre-built ChromaDB reference index for deployment
+!data/chroma/
+!data/chroma/**
+!data/chroma/*.sqlite3
 
 # Conversation history & test sessions
 data/history/
