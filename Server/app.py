@@ -15,6 +15,7 @@ from auth import models as auth_models  # noqa: F401
 from patient.models import patient_models  # noqa: F401
 
 from patient.models.database import init_db
+from patient.seed_data import seed_demo_data
 
 
 app = FastAPI(
@@ -26,6 +27,7 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     init_db()
+    seed_demo_data()
 
 
 # =========================================================
@@ -38,6 +40,7 @@ custom_origins = [origin.strip() for origin in cors_env.split(",") if origin.str
 default_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://[::1]:5173",
     "https://medora-frontend.onrender.com",
 ]
 

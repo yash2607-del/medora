@@ -31,7 +31,28 @@ class PDFProcessor(BaseOCRService):
                 doc = fitz.open(file_path)
                 for page_num in range(len(doc)):
                     page = doc[page_num]
-                    text = page.get_text("text")
+                    # Extract words and reconstruct lines by vertical alignment to preserve table row integrity
+                    words = page.get_text("words")
+                    if words:
+                        words_sorted = sorted(words, key=lambda w: (round(w[1] / 4.0) * 4.0, w[0]))
+                        lines = []
+                        current_y = None
+                        current_words = []
+                        for w in words_sorted:
+                            y_group = round(w[1] / 4.0) * 4.0
+                            if current_y is None or abs(y_group - current_y) > 2.5:
+                                if current_words:
+                                    lines.append(" ".join(current_words))
+                                current_y = y_group
+                                current_words = [w[4]]
+                            else:
+                                current_words.append(w[4])
+                        if current_words:
+                            lines.append(" ".join(current_words))
+                        text = "\n".join(lines)
+                    else:
+                        text = page.get_text("text")
+
                     # PyMuPDF digital extract confidence is high if text found
                     conf = 0.98 if len(text.strip()) > 30 else 0.5
                     pages.append({

@@ -240,9 +240,17 @@ def import_dataset(csv_path: str):
 
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    target_csv = os.path.join(base_dir, "patient_report_dataset_300.csv")
-    if not os.path.exists(target_csv):
-        target_csv = os.path.join(base_dir, "Healthcare-RAG-Assistant", "patient_report_dataset_300.csv")
+    if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+        target_csv = sys.argv[1]
+    else:
+        candidates = [
+            os.path.join(base_dir, "Server", "data", "csv", "patient_report_dataset_300.csv"),
+            os.path.join(base_dir, "patient_report_dataset_300.csv"),
+            os.path.join(base_dir, "Healthcare-RAG-Assistant", "patient_report_dataset_300.csv"),
+        ]
+        target_csv = next((c for c in candidates if os.path.exists(c)), candidates[0])
+
+    print(f"Target CSV resolved to: {target_csv}")
     success = import_dataset(target_csv)
     sys.exit(0 if success else 1)
 

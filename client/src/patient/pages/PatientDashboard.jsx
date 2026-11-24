@@ -816,6 +816,12 @@ export default function PatientDashboard({
           <PatientChatBox
             patientId={getPatientId()}
             reportId={selectedReportDetail?.report_id}
+            reports={sortedReports}
+            onSelectReport={(repId) => {
+              if (repId && repId !== 'all') {
+                loadReportDetail(getPatientId(), repId);
+              }
+            }}
             onOpenEvidence={handleInspectEvidence}
           />
         )}

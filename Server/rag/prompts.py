@@ -76,6 +76,7 @@ Services: [Services Available]
 
 7. FORMATTING:
 - Plain text only. Absolutely NEVER use markdown asterisks (no **bold** or *italic*).
+- NEVER use emojis or emoticons in responses. Keep tone professional, clean, and clinical.
 - Use clean line breaks and simple bullet points (•) where appropriate.
 """
 

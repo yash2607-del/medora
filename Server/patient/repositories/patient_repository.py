@@ -213,26 +213,30 @@ class PatientRepository:
         results_data: List[Dict[str, Any]]
     ) -> List[TestResult]:
 
+        if not results_data:
+            return []
+
+        ids = [r["result_id"] for r in results_data]
+        existing_map = {
+            r.result_id: r
+            for r in self.db.query(TestResult).filter(TestResult.result_id.in_(ids)).all()
+        } if ids else {}
+
+        valid_cols = {c.name for c in TestResult.__table__.columns}
         added = []
 
         for r_data in results_data:
-            existing = (
-                self.db.query(TestResult)
-                .filter(
-                    TestResult.result_id == r_data["result_id"]
-                )
-                .first()
-            )
-
-            if not existing:
-                res = TestResult(**r_data)
+            cleaned_data = {k: v for k, v in r_data.items() if k in valid_cols}
+            rid = cleaned_data.get("result_id")
+            if rid in existing_map:
+                existing = existing_map[rid]
+                for k, v in cleaned_data.items():
+                    setattr(existing, k, v)
+                added.append(existing)
+            else:
+                res = TestResult(**cleaned_data)
                 self.db.add(res)
                 added.append(res)
-            else:
-                for k, v in r_data.items():
-                    setattr(existing, k, v)
-
-                added.append(existing)
 
         self.db.commit()
 
@@ -378,6 +382,25 @@ class PatientRepository:
         self.db.refresh(trend)
 
         return trend
+
+    def upsert_trends_bulk(
+        self,
+        trends_data: List[Dict[str, Any]]
+    ) -> List[TrendObservation]:
+        objects = [
+            TrendObservation(
+                **{
+                    k: v
+                    for k, v in t.items()
+                    if hasattr(TrendObservation, k)
+                }
+            )
+            for t in trends_data
+        ]
+        if objects:
+            self.db.add_all(objects)
+            self.db.commit()
+        return objects
 
     def get_patient_trends(
         self,

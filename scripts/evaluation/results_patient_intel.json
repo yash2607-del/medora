@@ -1,0 +1,27 @@
+{
+  "longitudinal_evaluation": {
+    "total_trends_evaluated": 600,
+    "delta_math_accuracy": 0.0733,
+    "percentage_change_math_accuracy": 0.0633,
+    "directional_logic_test_accuracy": 1.0,
+    "trend_direction_distribution": {
+      "stable": 485,
+      "improving": 64,
+      "worsening": 51
+    },
+    "persistence_distribution": {
+      "stable_normal": 485,
+      "previously_abnormal_now_normal": 46,
+      "persistently_abnormal": 61,
+      "newly_abnormal": 8
+    }
+  },
+  "provenance_audit": {
+    "total_test_results": 1800,
+    "records_with_patient_id": 1800,
+    "records_with_report_id": 1800,
+    "records_with_source_page": 1800,
+    "records_with_source_text": 1800,
+    "overall_traceability_rate": 1.0
+  }
+}

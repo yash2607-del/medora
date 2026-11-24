@@ -540,90 +540,56 @@ class PatientService:
             pages_to_save
         )
 
-        # ── 9. Extract PDF tables ──────────────────────────────────────────────
-
+        # ── 9. Test Extraction (Fast Line-Based First) ────────────────────────
         tables = []
-
-        if ext == ".pdf":
-
-            try:
-
-                tables = ocr_processor.extract_tables(
-                    saved_path
-                )
-
-            except Exception as e:
-
-                print(
-                    f"[Table Extraction Warning] {e}"
-                )
-
-                tables = []
-
-        # ── 10. Test Extraction ────────────────────────────────────────────────
-
         try:
-
             extracted = TestExtractor.extract_from_pages(
                 pages=pages,
                 report_id=report_id,
                 patient_id=patient_id,
-                laboratory=(
-                    laboratory
-                    or "Lords Pathology"
-                ),
-                tables=tables,
+                laboratory=(laboratory or "Lords Pathology"),
+                tables=None,
             )
 
-        except Exception as e:
+            # Lazy table fallback only if text extraction produced 0 tests
+            if not extracted and ext == ".pdf":
+                try:
+                    tables = ocr_processor.extract_tables(saved_path)
+                    if tables:
+                        extracted = TestExtractor.extract_from_pages(
+                            pages=pages,
+                            report_id=report_id,
+                            patient_id=patient_id,
+                            laboratory=(laboratory or "Lords Pathology"),
+                            tables=tables,
+                        )
+                except Exception as e:
+                    print(f"[Table Fallback Warning] {e}")
 
+        except Exception as e:
             self.repo.update_report_status(
                 patient_id,
                 report_id,
                 "FAILED",
                 error_msg="Extraction error",
             )
-
             raise RuntimeError(
                 "Test extraction failed. Please check report format."
             ) from e
 
+        # ── 10. Save Extracted Results & Update Status ─────────────────────────
+        saved_results = self.repo.add_test_results(extracted)
+
+        # ── 11. Longitudinal Trend Recalculation ───────────────────────────────
+        self.refresh_patient_trends(patient_id)
+
+        # ── 12. Final Status (Single consolidated update) ─────────────────────
         self.repo.update_report_status(
-            patient_id,
-            report_id,
-            "EXTRACTION_COMPLETE",
-        )
-
-        # ── 11. Save Extracted Results ─────────────────────────────────────────
-
-        saved_results = self.repo.add_test_results(
-            extracted
-        )
-
-        self.repo.update_report_status(
-            patient_id,
-            report_id,
-            "VALIDATED",
-        )
-
-        # ── 12. Longitudinal Trend Recalculation ───────────────────────────────
-
-        self.refresh_patient_trends(
-            patient_id
-        )
-
-        self.repo.update_report_status(
-            patient_id,
-            report_id,
-            "ANALYZED",
-        )
-
-        # ── 13. Final status ───────────────────────────────────────────────────
-
-        self.repo.update_report_status(
-            patient_id,
-            report_id,
-            "REPORT_READY",
+            patient_id=patient_id,
+            report_id=report_id,
+            status="REPORT_READY",
+            ocr_quality=quality["score"],
+            ocr_label=quality_label,
         )
 
         return {
@@ -787,22 +753,13 @@ class PatientService:
             patient_id
         )
 
-        records_dict = []
+        reports = self.repo.list_patient_reports(patient_id)
+        report_dates = {r.report_id: r.report_date for r in reports}
 
-        for r in all_results:
-
-            rep = self.repo.get_report(
-                patient_id,
-                r.report_id,
-            )
-
-            records_dict.append({
+        records_dict = [
+            {
                 "report_id": r.report_id,
-                "report_date": (
-                    rep.report_date
-                    if rep
-                    else ""
-                ),
+                "report_date": report_dates.get(r.report_id, ""),
                 "test_name_original": r.test_name_original,
                 "test_name_normalized": r.test_name_normalized,
                 "normalized_value": r.normalized_value,
@@ -810,7 +767,9 @@ class PatientService:
                 "reference_low": r.reference_low,
                 "reference_high": r.reference_high,
                 "status": r.status,
-            })
+            }
+            for r in all_results
+        ]
 
         trends = LongitudinalAnalyzer.compute_all_patient_trends(
             patient_id,
@@ -821,9 +780,8 @@ class PatientService:
             patient_id
         )
 
-        for t in trends:
-
-            self.repo.upsert_trend({
+        trend_objects = [
+            {
                 "patient_id": patient_id,
                 "test_name": t["test_name"],
                 "first_value": t.get("first_value"),
@@ -837,7 +795,11 @@ class PatientService:
                 "evidence": str(
                     t.get("evidence", "")
                 ),
-            })
+            }
+            for t in trends
+        ]
+
+        self.repo.upsert_trends_bulk(trend_objects)
 
         return trends
 
@@ -972,28 +934,26 @@ class PatientService:
             "gender": patient.gender,
         }
 
+        reports = self.repo.list_patient_reports(patient_id)
+        report_map = {r.report_id: r for r in reports}
+
         target_report = None
+        is_all_reports = False
 
-        if report_id:
-
+        if report_id and str(report_id).strip().lower() not in ["all", "all_reports", "null", "none"]:
             target_report = self.repo.get_report(
                 patient_id,
                 report_id,
             )
-
-        else:
-
-            reports = self.repo.list_patient_reports(
-                patient_id
-            )
-
-            if reports:
+            # If specified report not found, fallback to latest or all
+            if not target_report and reports:
                 target_report = reports[-1]
+        else:
+            is_all_reports = True
 
         recent_results = []
 
-        if target_report:
-
+        if not is_all_reports and target_report:
             res_list = self.repo.get_report_results(
                 patient_id,
                 target_report.report_id,
@@ -1009,31 +969,61 @@ class PatientService:
                     "status": r.status,
                     "source_page": r.source_page,
                     "source_text": r.source_text,
+                    "report_id": target_report.report_id,
+                    "report_date": target_report.report_date,
+                    "laboratory": target_report.laboratory or "Lords Pathology",
                 }
                 for r in res_list
+            ]
+        else:
+            all_res_list = self.repo.get_all_patient_results(patient_id)
+
+            recent_results = [
+                {
+                    "test_name_original": r.test_name_original,
+                    "test_name_normalized": r.test_name_normalized,
+                    "normalized_value": r.normalized_value,
+                    "normalized_unit": r.normalized_unit,
+                    "reference_text": r.reference_text,
+                    "status": r.status,
+                    "source_page": r.source_page,
+                    "source_text": r.source_text,
+                    "report_id": r.report_id,
+                    "report_date": report_map.get(r.report_id).report_date if report_map.get(r.report_id) else None,
+                    "laboratory": report_map.get(r.report_id).laboratory if report_map.get(r.report_id) else "Lords Pathology",
+                }
+                for r in all_res_list
             ]
 
         trends = self.refresh_patient_trends(
             patient_id
         )
 
-        report_meta = {
-            "report_id": (
-                target_report.report_id
-                if target_report
-                else None
-            ),
-            "report_date": (
-                target_report.report_date
-                if target_report
-                else None
-            ),
-            "laboratory": (
-                target_report.laboratory
-                if target_report
-                else "Lords Pathology"
-            ),
-        }
+        available_reports = [
+            {
+                "report_id": r.report_id,
+                "report_date": r.report_date,
+                "laboratory": r.laboratory or "Lords Pathology",
+            }
+            for r in reports
+        ]
+
+        if not is_all_reports and target_report:
+            report_meta = {
+                "report_id": target_report.report_id,
+                "scope": "single_report",
+                "report_date": target_report.report_date,
+                "laboratory": target_report.laboratory or "Lords Pathology",
+                "available_reports": available_reports,
+            }
+        else:
+            report_meta = {
+                "report_id": None,
+                "scope": "all_reports",
+                "report_date": "All Historical Reports",
+                "laboratory": "Lords Pathology & Affiliates",
+                "available_reports": available_reports,
+            }
 
         return self.chat_svc.answer_question(
             patient_profile=patient_profile,

@@ -1,0 +1,92 @@
+{
+  "dataset_evaluation": {
+    "total_evaluated_records": 1800,
+    "name_normalization_accuracy": 0.395,
+    "value_parsing_accuracy": 1.0,
+    "status_classification_accuracy": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0,
+    "confusion_matrix": {
+      "NORMAL": {
+        "NORMAL": 1537,
+        "LOW": 0,
+        "HIGH": 0
+      },
+      "LOW": {
+        "NORMAL": 0,
+        "LOW": 90,
+        "HIGH": 0
+      },
+      "HIGH": {
+        "NORMAL": 0,
+        "LOW": 0,
+        "HIGH": 173
+      }
+    },
+    "class_metrics": {
+      "NORMAL": {
+        "TP": 1537,
+        "FP": 0,
+        "FN": 0,
+        "support": 1537,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "LOW": {
+        "TP": 90,
+        "FP": 0,
+        "FN": 0,
+        "support": 90,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "HIGH": {
+        "TP": 173,
+        "FP": 0,
+        "FN": 0,
+        "support": 173,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    }
+  },
+  "pdf_processing_benchmarks": [
+    {
+      "document_name": "Synthetic Lab Report (1 Page)",
+      "file_size_kb": 27.21,
+      "page_count": 1,
+      "total_extracted_characters": 842,
+      "avg_chars_per_page": 842.0,
+      "total_processing_time_sec": 0.0068,
+      "throughput_ms_per_page": 6.84,
+      "ocr_quality_score": 0.99,
+      "is_low_quality": false
+    },
+    {
+      "document_name": "Clinical Diagnostic Report (28 Pages)",
+      "file_size_kb": 9247.09,
+      "page_count": 28,
+      "total_extracted_characters": 54142,
+      "avg_chars_per_page": 1933.6,
+      "total_processing_time_sec": 0.1156,
+      "throughput_ms_per_page": 4.13,
+      "ocr_quality_score": 0.98,
+      "is_low_quality": false
+    },
+    {
+      "document_name": "Diagnostic Centre Directory (64 Pages)",
+      "file_size_kb": 459.91,
+      "page_count": 64,
+      "total_extracted_characters": 50041,
+      "avg_chars_per_page": 781.9,
+      "total_processing_time_sec": 0.0773,
+      "throughput_ms_per_page": 1.21,
+      "ocr_quality_score": 0.95,
+      "is_low_quality": false
+    }
+  ]
+}

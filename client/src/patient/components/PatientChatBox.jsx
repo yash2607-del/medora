@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -10,6 +10,10 @@ import {
   Sparkles,
   ShieldCheck,
   AlertCircle,
+  FileText,
+  Calendar,
+  Layers,
+  BookOpen,
 } from 'lucide-react';
 
 import { patientApi } from '../api/patientApi';
@@ -180,14 +184,24 @@ function AssistantMarkdown({ content }) {
 export default function PatientChatBox({
   patientId,
   reportId,
+  reports = [],
+  onSelectReport,
   onOpenEvidence,
 }) {
+  const [activeReportId, setActiveReportId] = useState(reportId || 'all');
+
+  useEffect(() => {
+    if (reportId) {
+      setActiveReportId(reportId);
+    }
+  }, [reportId]);
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       sender: 'bot',
       text:
-        'Hello! I am your personal report assistant. I can help explain your personal test results, answer questions about recent changes, or identify what remained abnormal across your reports. What would you like to know?',
+        'Hello! I am your personal report assistant. You can ask me questions about any of your personal lab results, explore changes across your reports, or focus on a specific date using the **Report Focus** selector above. What would you like to know?',
       evidence: [],
       timestamp: new Date(),
     },
@@ -198,6 +212,52 @@ export default function PatientChatBox({
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Dynamic quick questions based on active report scope
+  const quickQuestions = useMemo(() => {
+    if (activeReportId === 'all') {
+      return [
+        'Which reports do you have on file?',
+        'Which results are abnormal across my reports?',
+        'What changed in my latest report?',
+        'Has my hemoglobin or cholesterol improved?',
+        'What has remained abnormal over time?',
+      ];
+    }
+    const currentRep = reports.find((r) => r.report_id === activeReportId);
+    const dateStr = currentRep?.report_date ? ` (${currentRep.report_date})` : '';
+    return [
+      `Explain this report${dateStr}.`,
+      `Which results were abnormal in this report?`,
+      `How does this report compare with my other reports?`,
+      `What were my vital/routine test values in this report?`,
+    ];
+  }, [activeReportId, reports]);
+
+  // Handle report scope change
+  const handleReportScopeChange = (newScopeId) => {
+    setActiveReportId(newScopeId);
+    if (typeof onSelectReport === 'function') {
+      onSelectReport(newScopeId);
+    }
+
+    const selectedRep = reports.find((r) => r.report_id === newScopeId);
+    const scopeLabel =
+      newScopeId === 'all'
+        ? 'All Reports (Full Longitudinal History)'
+        : `${selectedRep?.report_date || 'Report'} (${selectedRep?.laboratory || selectedRep?.report_id || 'Selected'})`;
+
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: `scope-${Date.now()}`,
+        sender: 'system',
+        text: `Switched conversation focus to **${scopeLabel}**.`,
+        evidence: [],
+        timestamp: new Date(),
+      },
+    ]);
+  };
 
   // Automatically scroll to the newest message.
   useEffect(() => {
@@ -232,10 +292,11 @@ export default function PatientChatBox({
     setLoading(true);
 
     try {
+      const effectiveReportId = activeReportId === 'all' ? null : activeReportId;
       const response = await patientApi.chat(
         patientId,
         query,
-        reportId || null
+        effectiveReportId
       );
 
       const answer =
@@ -339,13 +400,62 @@ export default function PatientChatBox({
       </div>
 
 
+      {/* Scope Selector Sub-bar */}
+      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 shrink-0">
+            {activeReportId === 'all' ? (
+              <BookOpen size={14} className="text-primary" />
+            ) : (
+              <FileText size={14} className="text-primary" />
+            )}
+            Report Focus:
+          </span>
+
+          <select
+            value={activeReportId}
+            onChange={(e) => handleReportScopeChange(e.target.value)}
+            className="text-xs font-medium text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary truncate max-w-[280px] sm:max-w-[360px]"
+          >
+            <option value="all">
+              All Reports (Full Longitudinal History)
+            </option>
+            {reports.map((r, index) => (
+              <option key={r.report_id} value={r.report_id}>
+                {r.report_date || `Report ${index + 1}`} — {r.laboratory || 'Diagnostic Lab'} ({r.report_id})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="text-[11px] text-slate-500 hidden sm:flex items-center gap-1 shrink-0">
+          <Calendar size={13} />
+          <span>
+            {reports.length} report{reports.length === 1 ? '' : 's'} on record
+          </span>
+        </div>
+      </div>
+
       {/* Messages */}
       <div
         className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-6"
         aria-live="polite"
       >
-
         {messages.map((message) => {
+          if (message.sender === 'system') {
+            return (
+              <div
+                key={message.id}
+                className="flex justify-center my-1 animate-fade-in"
+              >
+                <div className="inline-flex items-center gap-2 text-xs text-slate-600 bg-slate-100/90 border border-slate-200/90 px-3.5 py-1.5 rounded-full shadow-xs">
+                  <FileText size={13} className="text-primary shrink-0" />
+                  <AssistantMarkdown content={message.text} />
+                </div>
+              </div>
+            );
+          }
+
           const isUser = message.sender === 'user';
 
           return (
@@ -497,6 +607,11 @@ export default function PatientChatBox({
                               {status}
                             </span>
 
+                            {evidence.report_date && (
+                              <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1 rounded">
+                                {evidence.report_date}
+                              </span>
+                            )}
                           </button>
                         );
                       })}
@@ -546,7 +661,7 @@ export default function PatientChatBox({
 
 
       {/* Suggested questions */}
-      {messages.length === 1 && !loading && (
+      {messages.length <= 2 && !loading && (
 
         <div className="p-4 border-t border-slate-100 bg-slate-50/70 shrink-0">
 
@@ -556,16 +671,17 @@ export default function PatientChatBox({
 
           <div className="flex flex-wrap gap-2">
 
-            {QUICK_QUESTIONS.map((question) => (
+            {quickQuestions.map((question) => (
 
               <button
                 type="button"
                 key={question}
                 onClick={() => handleSend(question)}
                 disabled={!patientId || loading}
-                className="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-primary/50 hover:bg-primary/5 transition-all text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-primary/50 hover:bg-primary/5 transition-all text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
-                {question}
+                <Sparkles size={12} className="text-primary shrink-0" />
+                <span>{question}</span>
               </button>
 
             ))}

@@ -1,0 +1,169 @@
+{
+  "dense_vector_retrieval_baseline": {
+    "Precision@1": 0.9,
+    "Precision@3": 0.9167,
+    "Precision@5": 0.9,
+    "Recall@1": 0.9,
+    "Recall@3": 1.0,
+    "Recall@5": 1.0,
+    "MRR": 0.9333
+  },
+  "vector_plus_cross_encoder_rerank": {
+    "Precision@1": 0.9,
+    "Precision@3": 0.8833,
+    "Precision@5": 0.83,
+    "Recall@1": 0.9,
+    "Recall@3": 1.0,
+    "Recall@5": 1.0,
+    "MRR": 0.9333
+  },
+  "query_normalization_ablation": [
+    {
+      "query_id": "Q01",
+      "raw_query": "What is the price of VITAMIN D TOTAL?",
+      "normalized_query": "What is the price of Vitamin D Total 25-Hydroxy TOTAL?",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q02",
+      "raw_query": "What about B12 test cost?",
+      "normalized_query": "What about Vitamin B12 test cost?",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q03",
+      "raw_query": "cost of cbc blood test",
+      "normalized_query": "cost of CBC Complete Blood Count 26 parameters blood test",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 1
+    },
+    {
+      "query_id": "Q04",
+      "raw_query": "how much is lft test",
+      "normalized_query": "how much is LFT Liver Function Tests Bilirubin SGOT SGPT test",
+      "raw_top3_relevant": 1,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q05",
+      "raw_query": "kft panel price and parameters",
+      "normalized_query": "KFT Kidney Function Test Renal BUN Creatinine panel price and parameters",
+      "raw_top3_relevant": 0,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q06",
+      "raw_query": "sugar test cost",
+      "normalized_query": "Blood Sugar Glucose Fasting Postprandial HbA1c cost",
+      "raw_top3_relevant": 2,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q07",
+      "raw_query": "colestrol test price",
+      "normalized_query": "Lipid Profile Cholesterol Triglycerides HDL LDL price",
+      "raw_top3_relevant": 0,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q08",
+      "raw_query": "thyrod test rate",
+      "normalized_query": "Thyroid Profile TSH T3 T4 rate",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q09",
+      "raw_query": "hba1c test price",
+      "normalized_query": "HbA1c Glycosylated Hemoglobin test price",
+      "raw_top3_relevant": 2,
+      "norm_top3_relevant": 2
+    },
+    {
+      "query_id": "Q10",
+      "raw_query": "creatanine serum test",
+      "normalized_query": "Creatinine Serum Kidney Function Test serum test",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q11",
+      "raw_query": "centres in Andhra Pradesh",
+      "normalized_query": "centres in Andhra Pradesh",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q12",
+      "raw_query": "centres in Maharashtra",
+      "normalized_query": "centres in Maharashtra",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q13",
+      "raw_query": "diagnostic lab in Kalyan",
+      "normalized_query": "diagnostic lab in Kalyan West",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q14",
+      "raw_query": "centres in Goa",
+      "normalized_query": "centres in Goa",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q15",
+      "raw_query": "full body health checkup package",
+      "normalized_query": "full body Full Body Health Checkup Package package",
+      "raw_top3_relevant": 1,
+      "norm_top3_relevant": 1
+    },
+    {
+      "query_id": "Q16",
+      "raw_query": "crp test cost",
+      "normalized_query": "CRP C-Reactive Protein Quantitative test cost",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q17",
+      "raw_query": "platelet count test",
+      "normalized_query": "Platelet Count CBC Complete Blood Count test",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q18",
+      "raw_query": "dengue test details and price",
+      "normalized_query": "Dengue NS1 Antigen IgG IgM Platelet details and price",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q19",
+      "raw_query": "electrolite serum test cost",
+      "normalized_query": "electrolyte serum test cost",
+      "raw_top3_relevant": 0,
+      "norm_top3_relevant": 3
+    },
+    {
+      "query_id": "Q20",
+      "raw_query": "fasting requirement for blood sugar",
+      "normalized_query": "fasting requirement for Blood Sugar Glucose Fasting Postprandial HbA1c",
+      "raw_top3_relevant": 3,
+      "norm_top3_relevant": 3
+    }
+  ],
+  "latency_breakdown_ms": {
+    "mean_normalization_ms": 0.08,
+    "mean_vector_search_ms": 41.54,
+    "mean_cross_encoder_rerank_ms": 3445.84,
+    "mean_llm_generation_ms": 4534.85,
+    "mean_total_pipeline_ms": 4576.47
+  }
+}

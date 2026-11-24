@@ -1,0 +1,24 @@
+{
+  "password_hashing_security": {
+    "passwords_tested": 5,
+    "mean_hashing_latency_ms": 431.25,
+    "mean_verification_latency_ms": 397.21,
+    "valid_password_accuracy": 1.0,
+    "invalid_password_rejection_accuracy": 1.0,
+    "enforces_72_byte_limit": true
+  },
+  "session_token_cryptography": {
+    "tokens_generated": 1000,
+    "token_uniqueness_rate": 1.0,
+    "raw_token_length_chars": 64,
+    "entropy_bits": 288,
+    "sha256_hash_length_hex": 64,
+    "one_way_hash_verified": true
+  },
+  "tenant_isolation_idor_test": {
+    "patient_a_records": 3,
+    "patient_b_records": 3,
+    "unauthorized_cross_tenant_leakage": 0,
+    "isolation_enforcement_pass": true
+  }
+}

@@ -47,7 +47,7 @@ export default function ChatBox({ initialQuery, setInitialQuery }) {
     setIsLoading(true);
 
     try {
-      const rawApi = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const rawApi = import.meta.env.VITE_API_URL || 'http://localhost:8080';
       const apiBase = rawApi.replace(/\/+$/, '');
       const response = await axios.post(`${apiBase}/api/chat`, {
         query: text.trim(),

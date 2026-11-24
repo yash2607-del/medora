@@ -1,4 +1,10 @@
 import os
+from dotenv import load_dotenv
+
+# Ensure .env is loaded regardless of caller
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(base_dir, ".env"))
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 

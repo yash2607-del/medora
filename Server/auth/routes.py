@@ -57,14 +57,14 @@ def generate_patient_id(db: Session) -> str:
 
     for row in existing_ids:
         patient_id = row[0]
-        match = re.fullmatch(r"P(\d+)", patient_id)
+        match = re.fullmatch(r"PAT(\d+)", patient_id) or re.fullmatch(r"P(\d+)", patient_id)
 
         if match:
             numbers.append(int(match.group(1)))
 
     next_number = max(numbers, default=0) + 1
 
-    return f"P{next_number:03d}"
+    return f"PAT{next_number:04d}"
 
 
 @router.post(
@@ -120,6 +120,7 @@ def signup(
 
     try:
         db.add(patient)
+        db.flush()
         db.add(account)
         db.commit()
         db.refresh(account)
@@ -240,6 +241,10 @@ def logout(
     db: Session = Depends(get_db),
 ):
     raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            raw_token = auth_header.split(" ", 1)[1].strip()
 
     revoke_session(db, raw_token)
     clear_session_cookie(response)

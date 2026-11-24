@@ -1,16 +1,3 @@
-# ==============================================================================
-# Healthcare & Diagnostic Data (Prevent Data Leakage)
-# ==============================================================================
-data/
-data/**
-*.xlsx
-*.xls
-*.csv
-*.tsv
-*.pdf
-*.doc
-*.docx
-
 # Vector Database & Embeddings Storage
 chroma/
 **/chroma/

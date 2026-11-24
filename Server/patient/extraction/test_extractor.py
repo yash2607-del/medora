@@ -6,8 +6,6 @@ Parses:
 2. Structured PDF table rows
 
 into normalized medical test records.
-
-Deterministic only. No LLM is used here.
 """
 
 import re
@@ -21,28 +19,99 @@ class TestExtractor:
 
     KNOWN_TEST_NAMES = list(CANONICAL_TEST_MAPPINGS.keys())
 
-    EXCLUDED_LINE_PATTERNS = [
-        "test name",
-        "reference interval",
-        "reference range",
-        "patient name",
-        "patient id",
-        "patient identifier",
-        "date of birth",
-        "collection date",
-        "report date",
-        "laboratory",
-        "diagnostic panel",
-        "testing note",
-        "synthetic report",
-        "for testing",
-        "page",
-        "phone",
-        "barcode",
-        "address",
-        "email",
-        "doctor",
-        "dr.",
+    EXCLUDED_PAGE_TITLES = [
+        "machine & qc",
+        "quality control",
+        "laboratory equipment dashboard",
+        "equipment details",
+        "health advisory",
+        "supplement suggestions",
+        "about healthians",
+        "credibility check",
+        "how we control report accuracy",
+        "summary & vital parameters",
+        "report summary",
+        "terms & conditions",
+        "wellness guide",
+        "patient advisory",
+        "lifestyle recommendations",
+        "doctor consultation",
+        "frequently asked questions",
+        "faq",
+    ]
+
+    SECTION_STOP_KEYWORDS = [
+        "INTERPRETATION",
+        "REMARKS",
+        "NOTE:",
+        "NOTES:",
+        "CLINICAL SIGNIFICANCE",
+        "RECOMMENDATIONS",
+        "DISCLAIMER",
+        "REFERENCE GROUP",
+        "GUIDELINES",
+        "VITAMIN D STATUS",
+        "USES:",
+        "INCREASED IN:",
+        "DECREASED IN:",
+        "COMMENTS:",
+        "COMMENT:",
+        "TEST REQUIREMENTS:",
+        "IMPORTANT INSTRUCTIONS",
+        "POTENTIAL SOURCES OF VARIATION",
+        "BIO REF RANGE FOR",
+    ]
+
+    METADATA_LINE_PREFIXES = [
+        "method:", "machine:", "instrument:", "patient name", "age/gender",
+        "order id", "booking id", "sample", "sin no", "page ", "barcode",
+        "customer since", "referred by", "collection date", "report date",
+        "report generated", "report status", "testing note", "no diagnosis",
+        "to order,", "physical recommended", "make your muscles", "remember,"
+    ]
+
+    CLINICAL_UNITS = {
+        'mg/dl', 'mg/l', 'g/dl', 'g/l', 'u/l', 'iu/l', 'ug/dl', 'mcg/dl', 'ng/ml', 'pg/ml',
+        'mmol/l', 'umol/l', 'meq/l', 'uiu/ml', 'miu/l', '10^3/ul', '10^6/ul', '%', 'ratio',
+        'ml/min', 'fl', 'pg', '/cumm', 'cells/hpf', 'cells/lpf', 'index', 'sec', 'seconds',
+        'iu/ml', 'copies/ml', 'g/l', 'mg/24hr', 'vol%', '/hpf', 'ml', '10^3/ul', 'cumm',
+        'cells/cumm', 'hpf', 'lpf', 'percent'
+    }
+
+    DISQUALIFY_WORDS = {
+        'is', 'are', 'was', 'were', 'for', 'with', 'from', 'that', 'this', 'have', 'has',
+        'call', 'order', 'please', 'should', 'could', 'would', 'about', 'after', 'before',
+        'your', 'must', 'partake', 'activity', 'minutes', 'hours', 'days', 'times', 'years',
+        'frequency', 'description', 'department', 'machine', 'analyzer', 'instrument',
+        'customer', 'received', 'collected', 'booking', 'barcode', 'sample', 'referred',
+        'delivery', 'performed', 'variant', 'guidelines', 'method', 'technology', 'quality',
+        'feature', 'optimal', 'desirable', 'borderline', 'risk', 'category', 'therapy',
+        'action', 'assessment', 'assessments', 'presence', 'determine', 'prompt',
+        'values', 'deficiency', 'insufficiency', 'sufficiency', 'toxicity',
+        'trimester', 'pregnancy', 'undergo', 'undergoes', 'recommends', 'considered',
+        'variation', 'circulating', 'steroid', 'regulating', 'mineralization',
+        'causes', 'rickets', 'osteomalacia', 'intoxication', 'exposure', 'malabsorption',
+        'dietary', 'coeliac', 'inflammatory', 'bowel', 'pancreatic', 'throughput',
+        'utilizing', 'fusion', 'delivering', 'sigma', 'standards', 'performance'
+    }
+
+    REFERENCE_BRACKET_NAMES = {
+        'deficiency', 'insufficiency', 'sufficiency', 'toxicity',
+        'optimal', 'desirable', 'borderline', 'borderline high', 'high', 'very high',
+        'normal', 'low', 'at risk', 'prediabetes', 'diabetes', 'diagnosing diabetes',
+        'mild', 'moderate', 'severe', 'low risk', 'moderate risk', 'high risk',
+        'extreme risk', 'category a', 'category b', 'category c', 'non diabetic',
+        'first trimester', 'second trimester', 'third trimester', 'pregnancy interval',
+        'adult', 'pediatric'
+    }
+
+    EXCLUDED_METADATA = [
+        "age / gender", "age/gender", "agegender", "testing note", "testingnote",
+        "synthetic report", "syntheticreport", "patient name", "patientname",
+        "patient id", "patientid", "patient identifier", "date of birth",
+        "dateofbirth", "collection date", "collectiondate", "report date",
+        "reportdate", "laboratory", "diagnostic panel", "diagnosticpanel",
+        "report category", "reportcategory", "lords pathology", "lordspathology"
     ]
 
     @classmethod
@@ -62,24 +131,26 @@ class TestExtractor:
         # ---------------------------------------------------------
 
         for page in pages or []:
-
             page_num = page.get("page_number", 1)
-
-            page_conf = float(
-                page.get("confidence", 0.95) or 0.95
-            )
-
+            page_conf = float(page.get("confidence", 0.95) or 0.95)
             text = page.get("text", "") or ""
 
+            # Check if this page is a non-clinical page (equipment, advisory, cover)
+            if "Test Results" not in text:
+                lower_text = text.lower()
+                if any(title in lower_text for title in cls.EXCLUDED_PAGE_TITLES):
+                    continue
+
             for line in text.splitlines():
-
                 line_clean = cls._clean_line(line)
-
                 if not line_clean:
                     continue
 
-                parsed = cls._parse_line(line_clean)
+                # Stop extracting if interpretation / remarks / guidelines reached on this page
+                if any(line_clean.upper().startswith(s) for s in cls.SECTION_STOP_KEYWORDS):
+                    break
 
+                parsed = cls._parse_line(line_clean)
                 if not parsed:
                     continue
 
@@ -98,18 +169,34 @@ class TestExtractor:
                     extracted_results.append(result)
 
         # ---------------------------------------------------------
-        # 2. Extract from structured PDF tables
+        # 2. Extract from structured PDF tables (supplementary)
         # ---------------------------------------------------------
 
+        def _canonical_key(name: str) -> str:
+            return re.sub(r'[^a-zA-Z0-9]', '', name).lower()
+
+        existing_test_keys = {
+            _canonical_key(r["test_name_normalized"])
+            for r in extracted_results
+        }
+        existing_test_keys.update({
+            _canonical_key(r["test_name_original"])
+            for r in extracted_results
+        })
+
         for table in tables or []:
-
             rows = cls._normalize_table(table)
-
             for row in rows:
-
                 parsed = cls._parse_table_row(row)
-
                 if not parsed:
+                    continue
+
+                test_name_cand = parsed.get("test_name", "")
+                norm_cand = TestNormalizer.normalize_test_name(test_name_cand)
+                key_norm = _canonical_key(norm_cand)
+                key_orig = _canonical_key(test_name_cand)
+
+                if key_norm in existing_test_keys or key_orig in existing_test_keys:
                     continue
 
                 result = cls._build_result(
@@ -125,6 +212,8 @@ class TestExtractor:
 
                 if result:
                     extracted_results.append(result)
+                    existing_test_keys.add(key_norm)
+                    existing_test_keys.add(key_orig)
 
         # ---------------------------------------------------------
         # 3. Remove duplicate OCR/table matches
@@ -134,7 +223,6 @@ class TestExtractor:
         seen = set()
 
         for result in extracted_results:
-
             key = (
                 result["test_name_normalized"].lower(),
                 str(result["normalized_value"]),
@@ -151,9 +239,7 @@ class TestExtractor:
 
         # Re-number IDs after deduplication
         for index, result in enumerate(deduped, start=1):
-
             page_num = result.get("source_page", 1)
-
             result["result_id"] = (
                 f"{report_id}_P{page_num}_{index}"
             )
@@ -185,7 +271,6 @@ class TestExtractor:
         ref_text = parsed.get("ref_text")
 
         try:
-
             processed = TestNormalizer.process_test_entry(
                 test_name_original=orig_name,
                 raw_value=value,
@@ -195,7 +280,6 @@ class TestExtractor:
                 printed_ref_text=ref_text,
                 laboratory=laboratory,
             )
-
         except Exception:
             return None
 
@@ -220,34 +304,20 @@ class TestExtractor:
             ),
             "patient_id": patient_id,
             "report_id": report_id,
-            "test_name_original": orig_name,
-            "test_name_normalized": processed[
-                "test_name_normalized"
-            ],
-            "original_value": processed[
-                "original_value"
-            ],
-            "original_unit": processed[
-                "original_unit"
-            ],
-            "normalized_value": processed[
-                "normalized_value"
-            ],
-            "normalized_unit": processed[
-                "normalized_unit"
-            ],
-            "reference_low": processed[
-                "reference_low"
-            ],
-            "reference_high": processed[
-                "reference_high"
-            ],
-            "reference_text": processed[
-                "reference_text"
-            ],
-            "status": processed[
-                "status"
-            ],
+            "test_name_original": processed["test_name_original"],
+            "test_name_normalized": processed["test_name_normalized"],
+            "original_value": processed["original_value"],
+            "original_unit": processed["original_unit"],
+            "normalized_value": processed["normalized_value"],
+            "normalized_unit": processed["normalized_unit"],
+            "reference_low": processed["reference_low"],
+            "reference_high": processed["reference_high"],
+            "reference_text": processed["reference_text"],
+            "status": processed["status"],
+            "deterministic_reasons": processed.get(
+                "deterministic_reasons",
+                [],
+            ),
             "extraction_confidence": confidence,
             "source_page": page_num,
             "source_text": source_text,
@@ -266,128 +336,79 @@ class TestExtractor:
         if not line:
             return None
 
-        if cls._is_excluded_line(line):
+        # Reject numbered footnotes or lists: e.g. "1. ", "7. "
+        if re.match(r'^\s*\d+[\.\)]\s+', line):
             return None
 
-        # Find first numeric result.
-        value_match = re.search(
-            r"(?P<value>[<>]?\s*\d+(?:\.\d+)?)",
-            line,
-        )
-
-        if not value_match:
+        lower_line = line.lower()
+        if any(lower_line.startswith(p) for p in cls.METADATA_LINE_PREFIXES):
             return None
 
-        value = value_match.group("value").strip()
+        # Reject reference bracket lines or guideline subheaders
+        if any(lower_line.startswith(p) for p in [
+            "first trimester", "second trimester", "third trimester",
+            "pregnancy interval", "bio ref range", "vitamin d status",
+            "deficiency", "insufficiency", "sufficiency", "optimal",
+            "borderline", "reference group", "interpretation"
+        ]):
+            return None
 
-        name_part = line[
-            :value_match.start()
-        ].strip()
+        # Must have a numeric test result
+        val_m = re.search(r'\s+(?P<val>[<>]?\s*\d+(?:\.\d+)?)\s+', line)
+        if not val_m:
+            return None
 
-        name_part = re.sub(
-            r"[:\-\|]+$",
-            "",
-            name_part,
-        ).strip()
+        name_part = line[:val_m.start()].strip()
+        value = val_m.group('val').strip()
+        remainder = line[val_m.end():].strip()
 
+        # Check if candidate looks like a medical test name
         if not cls._looks_like_test_name(name_part):
             return None
 
-        remainder = line[
-            value_match.end():
-        ].strip()
-
+        # Parse reference range and unit from remainder
         ref_low = None
         ref_high = None
         ref_text = None
-
-        # 12.0 - 15.5
-        range_match = re.search(
-            r"(?P<low>\d+(?:\.\d+)?)"
-            r"\s*(?:-|to)\s*"
-            r"(?P<high>\d+(?:\.\d+)?)",
-            remainder,
-            flags=re.IGNORECASE,
-        )
-
-        if range_match:
-
-            ref_low = float(
-                range_match.group("low")
-            )
-
-            ref_high = float(
-                range_match.group("high")
-            )
-
-            ref_text = range_match.group(0)
-
-            unit_part = remainder[
-                :range_match.start()
-            ].strip()
-
-        else:
-
-            unit_part = remainder
-
-            less_match = re.search(
-                r"<\s*(\d+(?:\.\d+)?)",
-                remainder,
-            )
-
-            greater_match = re.search(
-                r">\s*(\d+(?:\.\d+)?)",
-                remainder,
-            )
-
-            if less_match:
-
-                ref_low = 0.0
-                ref_high = float(
-                    less_match.group(1)
-                )
-
-                ref_text = less_match.group(0)
-
-                unit_part = remainder[
-                    :less_match.start()
-                ].strip()
-
-            elif greater_match:
-
-                ref_low = float(
-                    greater_match.group(1)
-                )
-
-                ref_high = None
-
-                ref_text = greater_match.group(0)
-
-                unit_part = remainder[
-                    :greater_match.start()
-                ].strip()
-
-        unit_part = re.sub(
-            r"[\(\)]",
-            "",
-            unit_part,
-        ).strip()
-
         unit = None
 
-        if unit_part:
+        range_m = re.search(r'(?P<low>\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(?P<high>\d+(?:\.\d+)?)', remainder, re.IGNORECASE)
+        less_m = re.search(r'<\s*=?\s*(?P<high>\d+(?:\.\d+)?)', remainder)
+        greater_m = re.search(r'>\s*=?\s*(?P<low>\d+(?:\.\d+)?)', remainder)
 
-            # Common unit patterns.
-            unit_match = re.match(
-                r"^([A-Za-z0-9µμ/%\^\*\.\-_]+)",
-                unit_part,
-            )
+        unit_part = remainder
+        if range_m:
+            ref_low = float(range_m.group('low'))
+            ref_high = float(range_m.group('high'))
+            ref_text = f"{ref_low} - {ref_high}"
+            unit_part = remainder[:range_m.start()]
+        elif less_m:
+            ref_high = float(less_m.group('high'))
+            ref_low = 0.0
+            ref_text = f"<{ref_high}"
+            unit_part = remainder[:less_m.start()]
+        elif greater_m:
+            ref_low = float(greater_m.group('low'))
+            ref_text = f">{ref_low}"
+            unit_part = remainder[:greater_m.start()]
 
-            if unit_match:
-                unit = unit_match.group(1)
+        clean_u = re.sub(r'(?:Desirable|Optimal|Borderline|High|Low|Risk|Method|Machine|\:)+', '', unit_part, flags=re.IGNORECASE).strip()
+        u_match = re.search(r'[A-Za-z0-9%/^–\.]+', clean_u)
+        if u_match:
+            unit = u_match.group(0)
 
-        if ref_text is None and remainder:
-            ref_text = remainder
+        # Check unit and range validity
+        clean_u_check = unit.strip().lower().replace(' ', '') if unit else ''
+        has_valid_unit = (clean_u_check in cls.CLINICAL_UNITS) or any(
+            clean_u_check.startswith(u)
+            for u in ['mg/dl', 'g/dl', 'u/l', '10^3', 'ratio', 'mmol', '%', 'ug', 'pg', 'ng']
+        )
+        has_valid_range = (ref_low is not None) or (ref_high is not None)
+
+        if not has_valid_unit and not has_valid_range:
+            norm_name = TestNormalizer.normalize_test_name(name_part)
+            if norm_name == "Unknown Test" or norm_name == name_part:
+                return None
 
         return {
             "test_name": name_part,
@@ -395,7 +416,7 @@ class TestExtractor:
             "unit": unit,
             "ref_low": ref_low,
             "ref_high": ref_high,
-            "ref_text": ref_text,
+            "ref_text": ref_text or "Reference range not specified",
         }
 
     # =================================================================
@@ -427,15 +448,12 @@ class TestExtractor:
             return None
 
         joined = " | ".join(cells)
-
-        if cls._is_excluded_line(joined):
+        if any(joined.lower().startswith(p) for p in cls.METADATA_LINE_PREFIXES):
             return None
 
-        # Locate test name.
+        # Locate test name
         name_index = None
-
         for i, cell in enumerate(cells):
-
             if cls._looks_like_test_name(cell):
                 name_index = i
                 break
@@ -445,123 +463,64 @@ class TestExtractor:
 
         test_name = cells[name_index]
 
-        # Find numeric result after test name.
+        # Find numeric result after test name
         value_index = None
         value = None
-
-        for i in range(
-            name_index + 1,
-            len(cells),
-        ):
-
-            match = re.fullmatch(
-                r"[<>]?\s*\d+(?:\.\d+)?",
-                cells[i],
-            )
-
-            if match:
-
+        for i in range(name_index + 1, len(cells)):
+            cell_val = cells[i].strip()
+            v_match = re.search(r'(?P<val>[<>]?\s*\d+(?:\.\d+)?)', cell_val)
+            if v_match:
                 value_index = i
-                value = cells[i]
+                value = v_match.group('val').strip()
                 break
 
-        # Sometimes table extraction combines columns.
-        if value_index is None:
-
-            for i in range(
-                name_index + 1,
-                len(cells),
-            ):
-
-                parsed = cls._parse_line(
-                    f"{test_name} {cells[i]}"
-                )
-
-                if parsed:
-                    return parsed
-
+        if value_index is None or value is None:
             return None
 
-        remaining = cells[
-            value_index + 1:
-        ]
-
+        # Unit and reference interval
         unit = None
         ref_low = None
         ref_high = None
         ref_text = None
 
-        # Unit usually appears immediately after value.
-        if remaining:
+        if value_index + 1 < len(cells):
+            unit_candidate = cells[value_index + 1].strip()
+            clean_u = unit_candidate.lower().replace(' ', '')
+            if clean_u in cls.CLINICAL_UNITS or any(clean_u.startswith(u) for u in ['mg/dl', 'g/dl', 'u/l', '10^3', 'ratio', 'mmol', '%', 'ug', 'pg', 'ng']):
+                unit = unit_candidate
 
-            candidate = remaining[0]
+        # Find reference interval in remaining cells
+        for j in range(value_index + 1, len(cells)):
+            cell_text = cells[j]
+            range_m = re.search(r'(?P<low>\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(?P<high>\d+(?:\.\d+)?)', cell_text)
+            less_m = re.search(r'<\s*=?\s*(?P<high>\d+(?:\.\d+)?)', cell_text)
+            greater_m = re.search(r'>\s*=?\s*(?P<low>\d+(?:\.\d+)?)', cell_text)
+            if range_m:
+                ref_low = float(range_m.group('low'))
+                ref_high = float(range_m.group('high'))
+                ref_text = f"{ref_low} - {ref_high}"
+                break
+            elif less_m:
+                ref_high = float(less_m.group('high'))
+                ref_low = 0.0
+                ref_text = f"<{ref_high}"
+                break
+            elif greater_m:
+                ref_low = float(greater_m.group('low'))
+                ref_text = f">{ref_low}"
+                break
 
-            if re.match(
-                r"^[A-Za-z0-9µμ/%\^\*\.\-_]+$",
-                candidate,
-            ):
-                unit = candidate
-                remaining = remaining[1:]
-
-        # Reference range may be one cell:
-        # "12.0 - 15.5"
-        # or two cells: "12.0", "15.5"
-        reference_text = " ".join(
-            remaining
-        ).strip()
-
-        range_match = re.search(
-            r"(\d+(?:\.\d+)?)"
-            r"\s*(?:-|to)"
-            r"\s*"
-            r"(\d+(?:\.\d+)?)",
-            reference_text,
-            flags=re.IGNORECASE,
+        clean_u_check = unit.strip().lower().replace(' ', '') if unit else ''
+        has_valid_unit = (clean_u_check in cls.CLINICAL_UNITS) or any(
+            clean_u_check.startswith(u)
+            for u in ['mg/dl', 'g/dl', 'u/l', '10^3', 'ratio', 'mmol', '%', 'ug', 'pg', 'ng']
         )
+        has_valid_range = (ref_low is not None) or (ref_high is not None)
 
-        if range_match:
-
-            ref_low = float(
-                range_match.group(1)
-            )
-
-            ref_high = float(
-                range_match.group(2)
-            )
-
-            ref_text = range_match.group(0)
-
-        else:
-
-            # Handle two separate numeric cells.
-            numeric_cells = []
-
-            for cell in remaining:
-
-                if re.fullmatch(
-                    r"\d+(?:\.\d+)?",
-                    cell,
-                ):
-                    numeric_cells.append(cell)
-
-            if len(numeric_cells) >= 2:
-
-                ref_low = float(
-                    numeric_cells[0]
-                )
-
-                ref_high = float(
-                    numeric_cells[1]
-                )
-
-                ref_text = (
-                    f"{numeric_cells[0]} - "
-                    f"{numeric_cells[1]}"
-                )
-
-            elif reference_text:
-
-                ref_text = reference_text
+        if not has_valid_unit and not has_valid_range:
+            norm_name = TestNormalizer.normalize_test_name(test_name)
+            if norm_name == "Unknown Test" or norm_name == test_name:
+                return None
 
         return {
             "test_name": test_name,
@@ -569,12 +528,23 @@ class TestExtractor:
             "unit": unit,
             "ref_low": ref_low,
             "ref_high": ref_high,
-            "ref_text": ref_text,
+            "ref_text": ref_text or "Reference range not specified",
         }
 
     # =================================================================
     # Table normalization
     # =================================================================
+
+    @classmethod
+    def _clean_cell_value(cls, cell: Any) -> str:
+        if cell is None:
+            return ""
+        s = str(cell).strip()
+        # Repair broken decimal breaks: e.g. '108\n.' -> '10.8'
+        s = re.sub(r'(\d+)(\d)\s*\n\s*\.', r'\1.\2', s)
+        s = re.sub(r'(\d+)(\d)\s+(\d+)(\d)\s*\n\s*\.\s*-\s*\.', r'\1.\2 - \3.\4', s)
+        s = re.sub(r'(\d+)\s*\n\s*-\s*', r'\1 - ', s)
+        return cls._clean_line(s)
 
     @classmethod
     def _normalize_table(
@@ -585,41 +555,22 @@ class TestExtractor:
         if table is None:
             return []
 
-        # PyMuPDF table.extract() normally returns:
-        #
-        # [
-        #   ["Test", "Result", "Unit", "Reference"],
-        #   ["Hemoglobin", "10.8", "g/dL", "12.0-15.5"],
-        # ]
-
         if isinstance(table, list):
-
             normalized = []
-
             for row in table:
-
                 if isinstance(row, (list, tuple)):
-
                     normalized.append([
-                        cls._clean_line(
-                            str(cell)
-                        )
+                        cls._clean_cell_value(cell)
                         for cell in row
                         if cell is not None
                     ])
-
                 elif isinstance(row, str):
-
                     normalized.append(
                         [
-                            cls._clean_line(x)
-                            for x in re.split(
-                                r"\t+|\|",
-                                row,
-                            )
+                            cls._clean_cell_value(x)
+                            for x in re.split(r"\t+|\|", row)
                         ]
                     )
-
             return normalized
 
         return []
@@ -637,46 +588,9 @@ class TestExtractor:
         if not line:
             return ""
 
-        cleaned = line.replace(
-            "\r",
-            " ",
-        )
-
-        cleaned = cleaned.replace(
-            "\xa0",
-            " ",
-        )
-
-        cleaned = cleaned.replace(
-            "–",
-            "-",
-        )
-
-        cleaned = cleaned.replace(
-            "—",
-            "-",
-        )
-
-        cleaned = re.sub(
-            r"\s+",
-            " ",
-            cleaned,
-        )
-
+        cleaned = line.replace("\r", " ").replace("\xa0", " ").replace("–", "-").replace("—", "-")
+        cleaned = re.sub(r"\s+", " ", cleaned)
         return cleaned.strip()
-
-    @classmethod
-    def _is_excluded_line(
-        cls,
-        line: str,
-    ) -> bool:
-
-        lower_line = line.lower()
-
-        return any(
-            pattern in lower_line
-            for pattern in cls.EXCLUDED_LINE_PATTERNS
-        )
 
     @classmethod
     def _looks_like_test_name(
@@ -685,116 +599,51 @@ class TestExtractor:
     ) -> bool:
 
         cleaned = name.strip()
-
-        if len(cleaned) < 2:
+        if len(cleaned) < 2 or len(cleaned) > 55:
             return False
 
-        if len(cleaned) > 80:
+        if len(cleaned.split()) > 7:
+            return False
+
+        if ':' in cleaned or ';' in cleaned:
+            return False
+
+        # Reject if starts with digits (e.g. numbered list like "1. ", "7. ")
+        if re.match(r'^\s*\d+[\.\)\-]', cleaned):
+            return False
+
+        # Reject bullets or symbols at start
+        if re.match(r'^[\-\*\•\–\—\:\>\<\=]', cleaned):
             return False
 
         lower_name = cleaned.lower()
 
-        # ---------------------------------------------------------
-        # Explicitly reject patient/report metadata
-        # ---------------------------------------------------------
-
-        excluded_metadata = [
-            "age / gender",
-            "age/gender",
-            "testing note",
-            "synthetic report",
-            "patient name",
-            "patient id",
-            "patient identifier",
-            "date of birth",
-            "collection date",
-            "report date",
-            "laboratory",
-            "diagnostic panel",
-        ]
-
-        if any(
-            metadata in lower_name
-            for metadata in excluded_metadata
-        ):
+        # Reject dangling prepositions or conjunctions at the end
+        if lower_name.endswith((' of', ' in', ' for', ' with', ' as', ' to', ' by', ' and', ' or', ' at', ' the', ' is', ' are', ' was', ' were', ' that')):
             return False
 
-        # ---------------------------------------------------------
-        # Known dictionary mappings
-        # ---------------------------------------------------------
-
-        for known in cls.KNOWN_TEST_NAMES:
-
-            if known.lower() in lower_name:
-                return True
-
-        # ---------------------------------------------------------
-        # Common laboratory terms
-        # ---------------------------------------------------------
-
-        medical_terms = [
-            "hemoglobin",
-            "haemoglobin",
-            "wbc",
-            "white blood",
-            "rbc",
-            "red blood",
-            "platelet",
-            "glucose",
-            "fasting glucose",
-            "creatinine",
-            "urea",
-            "bilirubin",
-            "albumin",
-            "protein",
-            "cholesterol",
-            "triglyceride",
-            "hdl",
-            "ldl",
-            "alt",
-            "sgpt",
-            "ast",
-            "sgot",
-            "alkaline phosphatase",
-            "alp",
-            "sodium",
-            "potassium",
-            "calcium",
-            "chloride",
-            "tsh",
-            "t3",
-            "t4",
-            "vitamin",
-            "iron",
-            "ferritin",
-            "uric acid",
-            "esr",
-            "crp",
-        ]
-
-        if any(
-            term in lower_name
-            for term in medical_terms
-        ):
-            return True
-
-        # ---------------------------------------------------------
-        # Generic metadata rejection
-        # ---------------------------------------------------------
-
-        if re.search(
-            r"\b(note|report|date|name|address|phone|id)\b",
-            lower_name,
-        ):
+        # Reject reference bracket names
+        if lower_name in cls.REFERENCE_BRACKET_NAMES:
             return False
 
-        # ---------------------------------------------------------
-        # Final fallback
-        # ---------------------------------------------------------
+        if any(lower_name.startswith(p) for p in [
+            "first trimester", "second trimester", "third trimester",
+            "pregnancy interval", "bio ref range", "vitamin d status",
+            "reference group"
+        ]):
+            return False
 
-        return bool(
-            re.search(
-                r"[A-Za-z]",
-                cleaned,
-            )
-        )
+        words_in_name = set(re.findall(r'\b[a-z]+\b', lower_name))
+        if words_in_name & cls.DISQUALIFY_WORDS:
+            return False
+
+        compressed = re.sub(r'[^a-zA-Z0-9]', '', lower_name)
+        for meta in cls.EXCLUDED_METADATA:
+            if meta in lower_name or re.sub(r'[^a-zA-Z0-9]', '', meta) in compressed:
+                return False
+
+        # Reject pure numbers or date-like strings
+        if re.fullmatch(r'[\d\.\-\s/]+', cleaned):
+            return False
+
+        return True

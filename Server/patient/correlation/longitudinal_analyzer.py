@@ -1,7 +1,7 @@
 """
 Longitudinal Trend and Historical Comparison Engine.
 Calculates all mathematical deltas, percentage changes, status shifts,
-and directional patterns deterministically in Python. Zero LLM math.
+and directional patterns deterministically in Python. 
 """
 
 from typing import List, Dict, Any, Optional
